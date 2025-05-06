@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>iNaturalist Oberösterreich</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    input, button { margin: 0.5rem; }
+    .observation { border-bottom: 1px solid #ccc; padding: 0.5rem 0; display: flex; align-items: center; gap: 1rem; }
+    img.thumb { width: 80px; height: 80px; object-fit: cover; }
+    .pagination { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>iNaturalist Beobachtungen in Oberösterreich</h1>
+  <label>Von: <input type="date" id="startDate"></label>
+  <label>Bis: <input type="date" id="endDate"></label>
+  <button onclick="fetchObservations()">Daten laden</button>
+
+  <div id="results"></div>
+  <div class="pagination">
+    <button onclick="changePage(-1)">&laquo; Zurück</button>
+    <span id="pageIndicator">Seite 1</span>
+    <button onclick="changePage(1)">Weiter &raquo;</button>
+  </div>
+
+  <script>
+    let currentPage = 1;
+
+    // Set default to current week
+    window.onload = function() {
+      const today = new Date();
+      const day = today.getDay();
+      const diffToMonday = day === 0 ? 6 : day - 1;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - diffToMonday);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const formatDate = (d) => d.toISOString().split('T')[0];
+
+      document.getElementById('startDate').value = formatDate(monday);
+      document.getElementById('endDate').value = formatDate(sunday);
+    }
+
+    async function fetchObservations() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const resultsDiv = document.getElementById('results');
+      const pageIndicator = document.getElementById('pageIndicator');
+
+      resultsDiv.innerHTML = 'Lade...';
+      pageIndicator.textContent = `Seite ${currentPage}`;
+
+      const url = `https://api.inaturalist.org/v1/observations?place_id=10466&d1=${startDate}&d2=${endDate}&taxon_id=47125&per_page=20&page=${currentPage}&order=desc&order_by=observed_on`; // 47125 = Tracheophyta
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        resultsDiv.innerHTML = '';
+
+        if (data.results.length === 0) {
+          resultsDiv.innerHTML = 'Keine Beobachtungen gefunden.';
+          return;
+        }
+
+        data.results.forEach(obs => {
+          const div = document.createElement('div');
+          div.className = 'observation';
+
+          const photoUrl = obs.photos && obs.photos.length > 0 ? obs.photos[0].url.replace('square', 'medium') : null;
+          const img = photoUrl ? `<img src="${photoUrl}" class="thumb" alt="Foto">` : '';
+
+          div.innerHTML = `
+            ${img}
+            <div>
+              <strong>${obs.taxon ? obs.taxon.name : 'Unbestimmt'}</strong><br>
+              Beobachter: ${obs.user ? obs.user.login : 'unbekannt'}<br>
+              Datum: ${obs.observed_on || '–'}<br>
+              Ort: ${obs.place_guess || '–'}<br>
+              <a href="${obs.uri}" target="_blank">Details</a>
+            </div>
+          `;
+
+          resultsDiv.appendChild(div);
+        });
+      } catch (err) {
+        resultsDiv.innerHTML = 'Fehler beim Laden der Daten.';
+        console.error(err);
+      }
+    }
+
+    function changePage(direction) {
+      currentPage = Math.max(1, currentPage + direction);
+      fetchObservations();
+    }
+  </script>
+</body>
+</html>
