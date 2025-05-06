@@ -71,13 +71,12 @@
     let currentPage = 1;
     let lastFetchedData = [];
 
-    window.onload = function() {
+    window.onload = function () {
       const today = new Date();
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(today.getMonth() - 1);
 
       const formatDate = (d) => d.toISOString().split('T')[0];
-
       document.getElementById('startDate').value = formatDate(oneMonthAgo);
       document.getElementById('endDate').value = formatDate(today);
 
@@ -96,12 +95,8 @@
       pageIndicator.textContent = `Seite ${currentPage}`;
 
       let url = `https://api.inaturalist.org/v1/observations?place_id=10466&d1=${startDate}&d2=${endDate}&taxon_id=47125&per_page=20&page=${currentPage}&order=desc&order_by=observed_on`;
-      if (verifiziert) {
-        url += '&quality_grade=research';
-      }
-      if (observer !== '') {
-        url += `&user_login=${encodeURIComponent(observer)}`;
-      }
+      if (verifiziert) url += '&quality_grade=research';
+      if (observer !== '') url += `&user_login=${encodeURIComponent(observer)}`;
 
       try {
         const response = await fetch(url);
@@ -118,7 +113,7 @@
           const div = document.createElement('div');
           div.className = 'observation';
 
-          const photoUrl = obs.photos && obs.photos.length > 0 ? obs.photos[0].url.replace('square', 'medium') : null;
+          const photoUrl = obs.photos?.[0]?.url?.replace('square', 'medium');
           const img = photoUrl ? `<img src="${photoUrl}" class="thumb" alt="Foto">` : '';
 
           const lat = obs.geojson?.coordinates?.[1];
@@ -127,8 +122,8 @@
           div.innerHTML = `
             ${img}
             <div>
-              <strong>${obs.taxon ? obs.taxon.name : 'Unbestimmt'}</strong><br>
-              Beobachter: ${obs.user ? obs.user.login : 'unbekannt'}<br>
+              <strong>${obs.taxon?.name || 'Unbestimmt'}</strong><br>
+              Beobachter: ${obs.user?.login || 'unbekannt'}<br>
               Datum: ${obs.observed_on || '–'}<br>
               Ort: ${obs.place_guess || '–'}<br>
               Koordinaten: ${typeof lat === 'number' && typeof lon === 'number' ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : '–'}<br>
@@ -149,7 +144,87 @@
       fetchObservations();
     }
 
-    // downloadCSV und downloadZobodatCSV bleiben unverändert
+    function downloadCSV() {
+      if (lastFetchedData.length === 0) {
+        alert("Keine Daten zum Exportieren vorhanden.");
+        return;
+      }
+
+      const rows = [["Taxon", "Beobachter", "Datum", "Ort", "Breitengrad", "Längengrad", "Link"]];
+      lastFetchedData.forEach(obs => {
+        const row = [
+          obs.taxon?.name || 'Unbestimmt',
+          obs.user?.login || '',
+          obs.observed_on || '',
+          obs.place_guess || '',
+          obs.geojson?.coordinates?.[1] || '',
+          obs.geojson?.coordinates?.[0] || '',
+          obs.uri || ''
+        ];
+        rows.push(row);
+      });
+
+      const csvContent = rows.map(e => e.map(v => `"${v}"`).join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "inat_ooe_beobachtungen.csv");
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function downloadZobodatCSV() {
+      if (lastFetchedData.length === 0) {
+        alert("Keine Daten zum Exportieren vorhanden.");
+        return;
+      }
+
+      const header = [
+        "Datum", "Origort", "Laenge", "Breite", "Dets",
+        "L", "Lgr", "Lmi", "Lse", "B", "Bgr", "Bmi", "Bse",
+        "Reich", "Klasse", "Ordnung", "Familie", "Gattung", "Art"
+      ];
+      const rows = [header];
+
+      lastFetchedData.forEach(obs => {
+        const date = obs.observed_on || '';
+        const place = obs.place_guess || '';
+        const lon = obs.geojson?.coordinates?.[0] || '';
+        const lat = obs.geojson?.coordinates?.[1] || '';
+        const dets = obs.user?.login || '';
+
+        const [Lgr, Lmi, Lse] = lon ? lon.toFixed(4).split(/[.]/).concat('0').slice(0, 3) : ['', '', ''];
+        const [Bgr, Bmi, Bse] = lat ? lat.toFixed(4).split(/[.]/).concat('0').slice(0, 3) : ['', '', ''];
+
+        const reich = "Viridiplantae";
+        const klasse = obs.taxon?.iconic_taxon_name || "";
+        const gattung = obs.taxon?.genus?.name || "";
+        const art = obs.taxon?.species?.name || obs.taxon?.name || "";
+
+        rows.push([
+          date, place, lon, lat, dets,
+          "O", Lgr, Lmi, Lse,
+          "N", Bgr, Bmi, Bse,
+          reich, klasse, "", "", gattung, art
+        ]);
+      });
+
+      const csvContent = rows.map(e => e.map(v => `"${v}"`).join(";")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "inat_ooe_zobodat.csv");
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   </script>
 </body>
 </html>
