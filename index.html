@@ -18,6 +18,7 @@
   <label><input type="checkbox" id="verifiziertOnly"> Nur verifizierte Beobachtungen</label>
   <button onclick="fetchObservations()">Daten laden</button>
   <button onclick="downloadCSV()">CSV herunterladen</button>
+  <button onclick="downloadZobodatCSV()">ZOBODAT CSV herunterladen</button>
 
   <div id="results"></div>
   <div class="pagination">
@@ -30,7 +31,6 @@
     let currentPage = 1;
     let lastFetchedData = [];
 
-    // Set default to current week
     window.onload = function() {
       const today = new Date();
       const day = today.getDay();
@@ -135,6 +135,55 @@
       const link = document.createElement("a");
       link.setAttribute("href", url);
       link.setAttribute("download", "inat_ooe_beobachtungen.csv");
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function downloadZobodatCSV() {
+      if (lastFetchedData.length === 0) {
+        alert("Keine Daten zum Exportieren vorhanden.");
+        return;
+      }
+
+      const header = [
+        "Dtname","Datum","Origort","Laenge","Breite","Dets","L","Lgr","Lmi","Lse","B","Bgr","Bmi","Bse","Reich","Klasse","Ordnung","Familie","Gattung","Art"
+      ];
+
+      const rows = [header];
+
+      lastFetchedData.forEach(obs => {
+        const name = obs.taxon?.preferred_common_name || obs.taxon?.name || 'Unbestimmt';
+        const date = obs.observed_on || '';
+        const place = obs.place_guess || '';
+        const lon = obs.geojson?.coordinates?.[0] || '';
+        const lat = obs.geojson?.coordinates?.[1] || '';
+        const dets = obs.user?.login || '';
+
+        const [Lgr, Lmi, Lse] = lon ? lon.toFixed(4).split(/[.]/).concat('0').slice(0,3) : ['','',''];
+        const [Bgr, Bmi, Bse] = lat ? lat.toFixed(4).split(/[.]/).concat('0').slice(0,3) : ['','',''];
+
+        const reich = obs.taxon?.ancestry?.includes('48460') ? "Viridiplantae" : "";
+        const klasse = obs.taxon?.iconic_taxon_name || "";
+        const ordnung = obs.taxon?.ancestor_ids?.[4] || "";
+        const familie = obs.taxon?.ancestor_ids?.[5] || "";
+        const gattung = obs.taxon?.genus?.name || "";
+        const art = obs.taxon?.species?.name || obs.taxon?.name || "";
+
+        rows.push([
+          name, date, place, lon, lat, dets, "O", Lgr, Lmi, Lse, "N", Bgr, Bmi, Bse,
+          "Viridiplantae", klasse, "", "", gattung, art
+        ]);
+      });
+
+      const csvContent = rows.map(e => e.map(v => `"${v}"`).join(";")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "inat_ooe_zobodat.csv");
       link.style.display = "none";
       document.body.appendChild(link);
       link.click();
