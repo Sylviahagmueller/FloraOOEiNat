@@ -15,6 +15,7 @@
   <h1>iNaturalist Beobachtungen in Oberösterreich</h1>
   <label>Von: <input type="date" id="startDate"></label>
   <label>Bis: <input type="date" id="endDate"></label>
+  <label><input type="checkbox" id="verifiziertOnly"> Nur verifizierte Beobachtungen</label>
   <button onclick="fetchObservations()">Daten laden</button>
 
   <div id="results"></div>
@@ -46,13 +47,17 @@
     async function fetchObservations() {
       const startDate = document.getElementById('startDate').value;
       const endDate = document.getElementById('endDate').value;
+      const verifiziert = document.getElementById('verifiziertOnly').checked;
       const resultsDiv = document.getElementById('results');
       const pageIndicator = document.getElementById('pageIndicator');
 
       resultsDiv.innerHTML = 'Lade...';
       pageIndicator.textContent = `Seite ${currentPage}`;
 
-      const url = `https://api.inaturalist.org/v1/observations?place_id=10466&d1=${startDate}&d2=${endDate}&taxon_id=47125&per_page=20&page=${currentPage}&order=desc&order_by=observed_on`; // 47125 = Tracheophyta
+      let url = `https://api.inaturalist.org/v1/observations?place_id=10466&d1=${startDate}&d2=${endDate}&taxon_id=47125&per_page=20&page=${currentPage}&order=desc&order_by=observed_on`;
+      if (verifiziert) {
+        url += '&quality_grade=research';
+      }
 
       try {
         const response = await fetch(url);
@@ -71,6 +76,9 @@
           const photoUrl = obs.photos && obs.photos.length > 0 ? obs.photos[0].url.replace('square', 'medium') : null;
           const img = photoUrl ? `<img src="${photoUrl}" class="thumb" alt="Foto">` : '';
 
+          const lat = obs.geojson?.coordinates?.[1];
+          const lon = obs.geojson?.coordinates?.[0];
+
           div.innerHTML = `
             ${img}
             <div>
@@ -78,6 +86,7 @@
               Beobachter: ${obs.user ? obs.user.login : 'unbekannt'}<br>
               Datum: ${obs.observed_on || '–'}<br>
               Ort: ${obs.place_guess || '–'}<br>
+              Koordinaten: ${typeof lat === 'number' && typeof lon === 'number' ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : '–'}<br>
               <a href="${obs.uri}" target="_blank">Details</a>
             </div>
           `;
