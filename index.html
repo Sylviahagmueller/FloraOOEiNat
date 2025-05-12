@@ -19,11 +19,6 @@
       font-size: 100%; /* 16px */
     }
     
-    @media (max-width: 600px) {
-      html { font-size: 115%; }
-      body { padding: 0.75rem; }
-    }
-
     body {
       margin: 0;
       font-family: "Helvetica Neue", sans-serif;
@@ -118,16 +113,38 @@
     }
 
     @media (max-width: 600px) {
+      html {
+        font-size: 120%;
+      }
+    
+      body {
+        padding: 1rem;
+      }
+    
+      .row,
+      .input-row,
+      .button-row {
+        flex-direction: column;
+      }
+    
+      button,
+      input[type="text"],
+      input[type="date"],
+      label {
+        font-size: 1.05rem;
+      }
+    
       .observation {
         flex-direction: column;
         align-items: flex-start;
       }
-
+    
       .observation img {
         width: 100%;
         height: auto;
       }
     }
+
   </style>
 </head>
 <body>
